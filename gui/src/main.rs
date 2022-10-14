@@ -2,6 +2,7 @@ use app::App;
 
 mod renderer;
 mod app;
+mod vertex;
 
 fn main() {
     let native_options = eframe::NativeOptions::default();

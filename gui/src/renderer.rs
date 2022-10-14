@@ -1,6 +1,13 @@
-use eframe::wgpu;
+use crate::vertex::Vertex;
+use eframe::wgpu::{self, util::DeviceExt};
 use std::sync::Arc;
 use type_map::concurrent::TypeMap;
+
+#[derive(Clone)]
+pub struct RenderData {
+    pub format: wgpu::TextureFormat,
+    pub objects: Vec<Vertex>,
+}
 
 pub struct Renderer {}
 
@@ -18,8 +25,8 @@ impl Renderer {
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main", // 1.
-                buffers: &[],           // 2.
+                entry_point: "vs_main",
+                buffers: &[Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 // 3.
@@ -52,20 +59,20 @@ impl Renderer {
             },
             multiview: None, // 5.
         });
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&data.objects),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
         map.insert(render_pipeline);
+        map.insert(vertex_buffer);
     }
 
-    pub fn paint<'a>(
-        render_pass: &mut wgpu::RenderPass<'a>,
-        map: &'a TypeMap,
-        data: Arc<RenderData>,
-    ) {
-        render_pass.set_pipeline(map.get().unwrap()); // 2.
+    pub fn paint<'a>(render_pass: &mut wgpu::RenderPass<'a>, map: &'a TypeMap) {
+        render_pass.set_pipeline(map.get().unwrap());
+        render_pass.set_vertex_buffer(0, map.get::<wgpu::Buffer>().unwrap().slice(..));
         render_pass.draw(0..3, 0..1);
     }
-}
-
-#[derive(Clone)]
-pub struct RenderData {
-    pub format: wgpu::TextureFormat,
 }
